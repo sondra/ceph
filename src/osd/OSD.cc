@@ -2195,9 +2195,8 @@ void OSD::handle_command(MMonCommand *m)
     }
     ss << pgid << " has " << unfound
        << " objects unfound and apparently lost, marking";
-    ObjectStore::Transaction *t = new ObjectStore::Transaction;
-    pg->mark_all_unfound_as_lost(*t);
-    store->queue_transaction(&pg->osr, t);
+    pg->mark_all_unfound_lost();
+    pg->unlock();
   } else if (cmd[0] == "heap") {
     if (ceph_using_tcmalloc()) {
       ceph_heap_profiler_handle_command(cmd, clog);

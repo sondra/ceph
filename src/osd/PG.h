@@ -1344,9 +1344,7 @@ public:
   bool adjust_need_up_thru(const OSDMap *osdmap);
 
   bool all_unfound_are_lost(const OSDMap* osdmap) const;
-  void mark_obj_as_lost(ObjectStore::Transaction& t,
-			const sobject_t &lost_soid);
-  void mark_all_unfound_as_lost(ObjectStore::Transaction& t);
+  virtual void mark_all_unfound_lost() = 0;
 
   bool calc_min_last_complete_ondisk() {
     eversion_t min = last_complete_ondisk;
