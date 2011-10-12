@@ -63,6 +63,8 @@
 #include "messages/MOSDRepScrub.h"
 
 #include "messages/MMonCommand.h"
+#include "messages/MCommand.h"
+#include "messages/MCommandReply.h"
 
 #include "messages/MPGStats.h"
 #include "messages/MPGStatsAck.h"
@@ -2107,6 +2109,9 @@ void OSD::handle_command(MMonCommand *m)
 {
   if (!require_mon_peer(m))
     return;
+  do_command(NULL, m->get_tid(), m->cmd, m->get_data());
+  m->put();
+}
 
   dout(20) << "handle_command args: " << m->cmd << dendl;
   if (m->cmd[0] == "injectargs") {
@@ -2117,16 +2122,16 @@ void OSD::handle_command(MMonCommand *m)
     derr << "injectargs:" << dendl;
     derr << oss.str() << dendl;
   }
-  else if (m->cmd[0] == "stop") {
-    dout(0) << "got shutdown" << dendl;
+  else if (cmd[0] == "stop") {
+    ss << "got shutdown";
     shutdown();
-  } else if (m->cmd[0] == "bench") {
+  } else if (cmd[0] == "bench") {
     uint64_t count = 1 << 30;  // 1gb
     uint64_t bsize = 4 << 20;
-    if (m->cmd.size() > 1)
-      bsize = atoll(m->cmd[1].c_str());
-    if (m->cmd.size() > 2)
-      count = atoll(m->cmd[2].c_str());
+    if (cmd.size() > 1)
+      bsize = atoll(cmd[1].c_str());
+    if (cmd.size() > 2)
+      count = atoll(cmd[2].c_str());
     
     bufferlist bl;
     bufferptr bp(bsize);
@@ -2153,53 +2158,61 @@ void OSD::handle_command(MMonCommand *m)
     // clean up
     store->queue_transaction(NULL, cleanupt);
 
-    stringstream ss;
     uint64_t rate = (double)count / (end - start);
-    clog.info() << "bench: wrote " << prettybyte_t(count)
-	<< " in blocks of " << prettybyte_t(bsize) << " in "
-	<< (end-start) << " sec at " << prettybyte_t(rate) << "/sec\n";
-    
-  } else if (m->cmd.size() == 2 && m->cmd[0] == "mark_unfound_lost") {
+    ss << "bench: wrote " << prettybyte_t(count)
+       << " in blocks of " << prettybyte_t(bsize) << " in "
+       << (end-start) << " sec at " << prettybyte_t(rate) << "/sec";
+  } else if (cmd.size() == 2 && cmd[0] == "mark_unfound_lost") {
     pg_t pgid;
-    if (pgid.parse(m->cmd[1].c_str())) {
-      PG *pg = _lookup_lock_pg(pgid);
-      if (pg) {
-	if (pg->is_primary()) {
-	  int unfound = pg->missing.num_missing() - pg->missing_loc.size();
-	  if (unfound) {
-	    if (pg->all_unfound_are_lost(pg->osd->osdmap)) {
-	      clog.error() << pgid << " has " << unfound
-			   << " objects unfound and apparently lost, marking\n";
-	      ObjectStore::Transaction *t = new ObjectStore::Transaction;
-	      pg->mark_all_unfound_as_lost(*t);
-	      store->queue_transaction(&pg->osr, t);
-	    } else
-	      clog.error() << "pg " << pgid << " has " << unfound
-			   << " objects but we haven't probed all sources, not marking lost despite command "
-			   << m->cmd << "\n";
-	  } else
-	    clog.error() << "pg " << pgid << " has no unfound objects for command " << m->cmd << "\n";
-	} else
-	  clog.error() << "not primary for pg " << pgid << "; acting is " << pg->acting << "\n";
-	pg->unlock();
-      } else
-	clog.error() << "pg " << pgid << " not found\n";
-    } else {
-      clog.error() << "cannot parse pgid from command '" << m->cmd << "'\n";
-
+    if (!pgid.parse(cmd[1].c_str())) {
+      ss << "can't parse pgid '" << cmd[1] << "'";
+      r = -EINVAL;
+      goto out;
     }
-  } else if (m->cmd[0] == "heap") {
-    if (ceph_using_tcmalloc())
-      ceph_heap_profiler_handle_command(m->cmd, clog);
-    else
-      clog.info() << "could not issue heap profiler command -- not using tcmalloc!\n";
-  } else if (m->cmd.size() > 1 && m->cmd[0] == "debug") {
-    if (m->cmd.size() == 3 && m->cmd[1] == "dump_missing") {
-      const string &file_name(m->cmd[2]);
+    PG *pg = _lookup_lock_pg(pgid);
+    if (!pg) {
+      ss << "pg " << pgid << " not found";
+      r = -ENOENT;
+      goto out;
+    }
+    if (!pg->is_primary()) {
+      ss << "pg " << pgid << " not primary";
+      r = -EINVAL;
+      goto out;
+    }
+    int unfound = pg->missing.num_missing() - pg->missing_loc.size();
+    if (!unfound) {
+      ss << "pg " << pgid << " has no unfound objects";
+      r = -ENOENT;
+      goto out;
+    }
+    if (!pg->all_unfound_are_lost(pg->osd->osdmap)) {
+      ss << "pg " << pgid << " has " << unfound
+	 << " objects but we haven't probed all sources, not marking lost despite command "
+	 << cmd;
+      r = -EINVAL;
+      goto out;
+    }
+    ss << pgid << " has " << unfound
+       << " objects unfound and apparently lost, marking";
+    ObjectStore::Transaction *t = new ObjectStore::Transaction;
+    pg->mark_all_unfound_as_lost(*t);
+    store->queue_transaction(&pg->osr, t);
+  } else if (cmd[0] == "heap") {
+    if (ceph_using_tcmalloc()) {
+      ceph_heap_profiler_handle_command(cmd, clog);
+    } else {
+      r = -EOPNOTSUPP;
+      ss << "could not issue heap profiler command -- not using tcmalloc!";
+    }
+  } else if (cmd.size() > 1 && cmd[0] == "debug") {
+    if (cmd.size() == 3 && cmd[1] == "dump_missing") {
+      const string &file_name(cmd[2]);
       std::ofstream fout(file_name.c_str());
       if (!fout.is_open()) {
-	clog.info() << "failed to open file '" << file_name << "'\n";
-	goto done;
+	ss << "failed to open file '" << file_name << "'";
+	r = -EINVAL;
+	goto out;
       }
 
       std::set <pg_t> keys;
@@ -2246,22 +2259,34 @@ void OSD::handle_command(MMonCommand *m)
       recovery_wq.kick();
     }
   }
-  else if (m->cmd[0] == "cpu_profiler") {
-    cpu_profiler_handle_command(m->cmd, clog);
+  else if (cmd[0] == "cpu_profiler") {
+    cpu_profiler_handle_command(cmd, clog);
   }
-  else if (m->cmd[0] == "dump_pg_recovery_stats") {
+  else if (cmd[0] == "dump_pg_recovery_stats") {
     stringstream s;
     pg_recovery_stats.dump(s);
-    dout(0) << "dump pg recovery stats\n" << s.str() << dendl;
+    ss << "dump pg recovery stats: " << s.str();
   }
-  else if (m->cmd[0] == "reset_pg_recovery_stats") {
-    dout(0) << "reset pg recovery stats" << dendl;
+  else if (cmd[0] == "reset_pg_recovery_stats") {
+    ss << "reset pg recovery stats";
     pg_recovery_stats.reset();
   }
-  else dout(0) << "unrecognized command! " << m->cmd << dendl;
+  else {
+    ss << "unrecognized command! " << cmd;
+    r = -EINVAL;
+  }
 
-done:
-  m->put();
+ out:
+  string rs = ss.str();
+  dout(0) << "do_command r=" << r << " " << rs << dendl;
+  clog.info() << rs << "\n";
+  if (con) {
+    MCommandReply *reply = new MCommandReply(r, rs);
+    reply->set_tid(tid);
+    reply->set_data(odata);
+    client_messenger->send_message(reply, con);
+  }
+  return;
 }
 
 
@@ -2574,6 +2599,9 @@ void OSD::_dispatch(Message *m)
 
   case MSG_MON_COMMAND:
     handle_command((MMonCommand*) m);
+    break;
+  case MSG_COMMAND:
+    handle_command((MCommand*) m);
     break;
 
   case MSG_OSD_SCRUB:
