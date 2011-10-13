@@ -4201,7 +4201,6 @@ PG::RecoveryState::Stray::react(const MLogRec& logevt) {
   assert(pg->log.tail <= pg->info.last_complete || pg->log.backlog);
   assert(pg->log.head == pg->info.last_update);
 
-  pg->write_info(*context<RecoveryMachine>().get_cur_transaction());
   dout(10) << "activating!" << dendl;
   post_event(Activate());
   return discard_event();
@@ -4211,11 +4210,9 @@ boost::statechart::result
 PG::RecoveryState::Stray::react(const MInfoRec& infoevt) {
   PG *pg = context< RecoveryMachine >().pg;
   dout(10) << "received info from " << infoevt.from << dendl;
-
   assert(pg->log.tail <= pg->info.last_complete || pg->log.backlog);
   assert(pg->log.head == pg->info.last_update);
 
-  pg->write_info(*context<RecoveryMachine>().get_cur_transaction());
   dout(10) << "activating!" << dendl;
   post_event(Activate());
   return discard_event();
