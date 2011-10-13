@@ -571,7 +571,7 @@ protected:
 
   // Cancels/resets pulls from peer
   void check_recovery_op_pulls(const OSDMap *map);
-  int pull(const sobject_t& oid);
+  int pull(const sobject_t& oid, eversion_t v);
   void send_pull_op(const sobject_t& soid, eversion_t v, bool first, const interval_set<uint64_t>& data_subset, int fromosd);
 
 
