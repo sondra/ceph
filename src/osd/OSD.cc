@@ -2186,7 +2186,7 @@ void OSD::handle_command(MMonCommand *m)
       r = -ENOENT;
       goto out;
     }
-    if (!pg->all_unfound_are_lost(pg->osd->osdmap)) {
+    if (!pg->all_unfound_are_queried_or_lost(pg->osd->osdmap)) {
       ss << "pg " << pgid << " has " << unfound
 	 << " objects but we haven't probed all sources, not marking lost despite command "
 	 << cmd;
