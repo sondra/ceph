@@ -2113,11 +2113,41 @@ void OSD::handle_command(MMonCommand *m)
   m->put();
 }
 
-  dout(20) << "handle_command args: " << m->cmd << dendl;
-  if (m->cmd[0] == "injectargs") {
+void OSD::handle_command(MCommand *m)
+{
+  Connection *con = m->get_connection();
+  Session *session = (Session *)con->get_priv();
+  if (!session) {
+    client_messenger->send_message(new MCommandReply(m, -EPERM), con);
+    m->put();
+    return;
+  }
+
+  OSDCaps& caps = session->caps;
+  session->put();
+
+  if (!caps.allow_all || m->get_source().is_mon()) {
+    client_messenger->send_message(new MCommandReply(m, -EPERM), con);
+    m->put();
+    return;
+  }
+
+  do_command(con, m->get_tid(), m->cmd, m->get_data());
+
+  m->put();
+}
+
+void OSD::do_command(Connection *con, tid_t tid, vector<string>& cmd, bufferlist& data)
+{
+  int r = 0;
+  ostringstream ss;
+  bufferlist odata;
+
+  dout(20) << "do_command tid " << tid << " " << cmd << dendl;
+  if (cmd[0] == "injectargs") {
     ostringstream oss;
     osd_lock.Unlock();
-    g_conf->injectargs(m->cmd[1], &oss);
+    g_conf->injectargs(cmd[1], &oss);
     osd_lock.Lock();
     derr << "injectargs:" << dendl;
     derr << oss.str() << dendl;
@@ -2266,8 +2296,8 @@ void OSD::handle_command(MMonCommand *m)
 
       fout.close();
     }
-    else if (m->cmd.size() == 3 && m->cmd[1] == "kick_recovery_wq") {
-      g_conf->osd_recovery_delay_start = atoi(m->cmd[2].c_str());
+    else if (cmd.size() == 3 && cmd[1] == "kick_recovery_wq") {
+      g_conf->osd_recovery_delay_start = atoi(cmd[2].c_str());
       clog.info() << "kicking recovery queue. set osd_recovery_delay_start "
 		    << "to " << g_conf->osd_recovery_delay_start << "\n";
 

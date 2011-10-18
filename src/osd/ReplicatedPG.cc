@@ -3984,7 +3984,7 @@ void ReplicatedPG::_applied_pushed_object(ObjectStore::Transaction *t, ObjectCon
   delete t;
 }
 
-void ReplicatedPG::recover_primary_got(hobject_t oid, eversion_t v)
+void ReplicatedPG::recover_primary_got(sobject_t oid, eversion_t v)
 {
   if (missing.is_missing(oid, v)) {
     dout(10) << "got missing " << oid << " v " << v << dendl;
@@ -4360,7 +4360,7 @@ void ReplicatedPG::_failed_push(MOSDSubOp *op)
 
 
 
-eversion_t ReplicatedPG::pick_newest_available(const hobject_t& oid)
+eversion_t ReplicatedPG::pick_newest_available(const sobject_t& oid)
 {
   eversion_t v;
 
@@ -4805,7 +4805,7 @@ int ReplicatedPG::recover_primary(int max)
 	    // I have it locally.  Revert.
 	    object_locator_t oloc;
 	    oloc.pool = info.pgid.pool();
-	    oloc.key = soid.get_key();
+	    //oloc.key = soid.get_key();
 	    ObjectContext *obc = get_object_context(soid, oloc, true);
 	    
 	    if (obc->obs.oi.version == latest->version) {

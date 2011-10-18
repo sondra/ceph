@@ -688,7 +688,7 @@ protected:
   void sub_op_modify_reply(MOSDSubOpReply *reply);
   void _applied_pushed_object(ObjectStore::Transaction *t, ObjectContext *obc);
   void _committed_pushed_object(MOSDSubOp *op, epoch_t same_since, eversion_t lc);
-  void recover_primary_got(hobject_t oid, eversion_t v);
+  void recover_primary_got(sobject_t oid, eversion_t v);
   void sub_op_push(MOSDSubOp *op);
   void _failed_push(MOSDSubOp *op);
   void sub_op_push_reply(MOSDSubOpReply *reply);
@@ -804,7 +804,7 @@ public:
   void wait_for_degraded_object(const sobject_t& oid, Message *op);
 
   void mark_all_unfound_lost(int what);
-  eversion_t pick_newest_available(const hobject_t& oid);
+  eversion_t pick_newest_available(const sobject_t& oid);
   ObjectContext *mark_object_lost(ObjectStore::Transaction *t,
 				  const sobject_t& oid, eversion_t version,
 				  utime_t mtime, int what);

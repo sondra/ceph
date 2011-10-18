@@ -524,6 +524,8 @@ protected:
   void send_pg_stats(const utime_t &now);
   void handle_pg_stats_ack(class MPGStatsAck *ack);
 
+
+
   void handle_command(class MMonCommand *m);
   void handle_command(class MCommand *m);
   void do_command(Connection *con, tid_t tid, vector<string>& cmd, bufferlist& data);

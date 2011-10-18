@@ -3670,12 +3670,12 @@ void PG::Missing::add(const sobject_t& oid, eversion_t need, eversion_t have)
 
 void PG::Missing::rm(const sobject_t& oid, eversion_t v)
 {
-  std::map<hobject_t, Missing::item>::iterator p = missing.find(oid);
+  std::map<sobject_t, Missing::item>::iterator p = missing.find(oid);
   if (p != missing.end() && p->second.need <= v)
     rm(p);
 }
 
-void PG::Missing::rm(const std::map<hobject_t, Missing::item>::iterator &m)
+void PG::Missing::rm(const std::map<sobject_t, Missing::item>::iterator &m)
 {
   rmissing.erase(m->second.need.version);
   missing.erase(m);
@@ -3683,7 +3683,7 @@ void PG::Missing::rm(const std::map<hobject_t, Missing::item>::iterator &m)
 
 void PG::Missing::got(const sobject_t& oid, eversion_t v)
 {
-  std::map<hobject_t, Missing::item>::iterator p = missing.find(oid);
+  std::map<sobject_t, Missing::item>::iterator p = missing.find(oid);
   assert(p != missing.end());
   assert(p->second.need <= v);
   got(p);
