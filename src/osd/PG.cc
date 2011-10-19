@@ -3637,9 +3637,7 @@ void PG::Missing::add_next_event(const Log::Entry& e, const Info &info)
       //assert(missing[e.soid].need == e.prior_version);
       rmissing.erase(missing[e.soid].need.version);
       missing[e.soid].need = e.version;  // leave .have unchanged.
-    } else if (e.is_backlog() ||
-	       e.prior_version <= info.log_tail ||
-	       e.prior_version > info.last_update) {
+    } else if (e.is_backlog()) {
       // May not have prior version
       missing[e.soid].need = e.version;
     } else {
