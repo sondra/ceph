@@ -4822,7 +4822,7 @@ PG::PgPriorSet::PgPriorSet(int whoami,
 	any_survived = true;
       } else if (!pinfo || pinfo->lost_at > interval.first) {
 	down.insert(0);
-	if (started_since_joining.size()) {
+	if (true || started_since_joining.size()) {
 	  if (pinfo)
 	    dout(10) << "build_prior  prior osd" << o
 		<< " is down, but marked lost at " << pinfo->lost_at
