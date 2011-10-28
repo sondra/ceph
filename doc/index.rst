@@ -1,21 +1,10 @@
 =================
- Welcome to Ceph
+ Overview of Ceph
 =================
 
-Ceph is a distributed network storage and file system with distributed
-metadata management and POSIX semantics.
+Ceph is a unified, distributed  file system that operates on a large number of hosts connected by a network.  Ceph has been designed to accommodate multiple  petabytes of storage with ease.  Since file sizes and network systems are always increasing, Ceph is perfectly positioned to accommodate these new technologies with its unique, self-healing and self-replicating architecture.   Customers that need to move large amounts of metadata, such as media and entertainment companies, can greatly benefit from this product. Ceph is also dynamic;  no need to cache data like those old-fashioned client-servers!
 
-RADOS is a reliable object store, used by Ceph, but also directly
-accessible.
-
-``radosgw`` is an S3-compatible RESTful HTTP service for object
-storage, using RADOS storage.
-
-RBD is a Linux kernel feature that exposes RADOS storage as a block
-device. Qemu/KVM also has a direct RBD client, that avoids the kernel
-overhead.
-
-.. image:: overview.png
+.. image:: CEPHConfig.jpg
 
 
 
